@@ -1,0 +1,32 @@
+draft:
+  preferred_size: 4
+  minimum_size: 3
+  maximum_size: 5
+commander:
+  preferred_size: 4
+  minimum_size: 3
+  maximum_size: 5
+rsvp:
+  # Used for Sesh/manual cached rosters. Sesh event messages always mean subscribed users.
+  attending_option: "✅"
+  include_maybe: false
+permissions:
+  admin_only_commands: true
+
+# Optional: the channel where Sesh posts your MTG schedule.
+# /tables create will scan this channel automatically.
+schedule:
+  channel_id: 123456789012345678
+  scan_limit: 100
+
+# Optional: destination channels for the two feeds. Both can be Forum Channels; each
+# item will become its own forum post/discussion. Text channels are also supported.
+feeds:
+  news_channel_id: 123456789012345678
+  deals_channel_id: 123456789012345678
+  poll_minutes: 10
+  # Delete deal forum posts after 3 days without a new message/reply.
+  auto_delete_days: 3
+  cleanup_poll_minutes: 60
+  # Legacy shared destination is still supported if per-feed IDs are omitted:
+  # channel_id: 123456789012345678
