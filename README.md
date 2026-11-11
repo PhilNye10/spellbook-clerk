@@ -31,11 +31,26 @@ Run `/spellbook` to open the ephemeral navigation hub. Its buttons organize the 
 4. Enter the commander used by each player. Partner commanders can be entered in one field, separated by `+` or `/`.
 5. Select the winner. The game is saved and contributes to player and commander statistics.
 
-The record flow is organizer-only by default (Manage Server or Administrator). Each game stores the event, pod, players, commander names, winner, and recording user. A pod can record multiple games, including games where players switch decks. `/commander delete game_id` removes an incorrectly recorded game and its statistics; the game ID is shown by `/commander history`.
+Creating event rosters, generating Commander pods and Draft brackets, rerolling assignments, recording Draft match winners, and recording/deleting Commander results are organizer-only. Server administrators and members with Manage Server are always authorized; additional members can be authorized by assigning them a configured Discord role ID or listing their user ID in `permissions` in `config.yaml`. Each game stores the event, pod, players, commander names, winner, and recording user. A pod can record multiple games, including games where players switch decks. `/commander delete game_id` removes an incorrectly recorded game and its statistics; the game ID is shown by `/commander history`.
 
 Player statistics include games, wins, losses, win rate, current win streak, and commander-by-commander records. Commander rankings are grouped by case-insensitive commander name. Because commander names are free text, use consistent names when entering games to avoid splitting the same commander into separate entries.
 
 Discord modals support up to five text inputs. The default pod maximum is five players. If you configure larger pods, the Commander game-recording modal will decline those pods rather than record incomplete commander data.
+
+## Organizer permissions
+
+Only server administrators, members with **Manage Server**, and members assigned a configured organizer role can create event rosters, generate Commander pods or Draft brackets, reroll assignments, and record or delete game results. Regular members can still open `/spellbook`, view all Commander and Draft leaderboards/player stats/history, and use the other non-organizer features.
+
+In `config.yaml`, add the ID of your Discord organizer role under `permissions.organizer_role_ids` (Developer Mode → right-click the role → Copy Role ID):
+
+```yaml
+permissions:
+  organizer_role_ids:
+    - 123456789012345678
+  organizer_user_ids: []
+```
+
+You can list more than one role ID. `organizer_user_ids` is an optional way to authorize individual users explicitly. Existing server administrators remain authorized automatically.
 
 ## Draft leaderboard
 

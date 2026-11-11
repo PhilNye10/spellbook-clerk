@@ -11,7 +11,12 @@ rsvp:
   attending_option: "✅"
   include_maybe: false
 permissions:
-  admin_only_commands: true
+  # Server administrators and members with Manage Server are always organizers.
+  # Add the Discord role IDs allowed to create events/pods and record results.
+  # Enable Developer Mode, then right-click the role and choose Copy Role ID.
+  organizer_role_ids: []
+  # Optional: explicitly authorize individual Discord user IDs.
+  organizer_user_ids: []
 
 # Optional: the channel where Sesh posts your MTG schedule.
 # /tables create will scan this channel automatically.

@@ -156,3 +156,25 @@ To update from v13, preserve `.env`, `config.yaml`, and `data/` exactly as befor
 ### Bot presence/status
 
 The bot now displays `Currently calculating lethal | /spellbook • /tables` as its Playing status.
+
+
+## Organizer role permissions
+
+Only server administrators, members with **Manage Server**, and members assigned a configured organizer role can create event rosters, generate Commander pods or Draft brackets, reroll assignments, and record/delete results. Other members can still view stats, leaderboards, and history and use the rest of the public bot features.
+
+After upgrading, edit `/opt/mtg-table-bot/config.yaml`. Enable Developer Mode in Discord (User Settings → Advanced), then right-click your organizer role and select **Copy Role ID**. Add it under `permissions.organizer_role_ids`:
+
+```yaml
+permissions:
+  organizer_role_ids:
+    - YOUR_ORGANIZER_ROLE_ID
+  organizer_user_ids: []
+```
+
+Keep any existing sections in `config.yaml`; merge this `permissions` section rather than replacing the whole file. You can include multiple role IDs and optional individual user IDs. Restart/rebuild the bot after saving:
+
+```bash
+cd /opt/mtg-table-bot
+docker compose up -d --build
+docker compose logs --tail=50
+```

@@ -15,7 +15,9 @@ class AppConfig:
     commander: ModeConfig
     attending_option: str = "✅"
     include_maybe: bool = False
-    admin_only_commands: bool = True
+    admin_only_commands: bool = True  # Retained for compatibility; organizer checks remain enforced.
+    organizer_role_ids: tuple[int, ...] = ()
+    organizer_user_ids: tuple[int, ...] = ()
     schedule_channel_id: int | None = None
     schedule_scan_limit: int = 100
     feed_channel_id: int | None = None  # Legacy shared channel setting
@@ -42,6 +44,18 @@ def load_config(path: str = "config.yaml") -> AppConfig:
     perms = raw.get("permissions", {})
     schedule = raw.get("schedule", {})
     feeds = raw.get("feeds", {})
+    def parse_id_list(value):
+        if value is None:
+            return ()
+        if not isinstance(value, (list, tuple)):
+            value = [value]
+        parsed = []
+        for item in value:
+            try:
+                parsed.append(int(item))
+            except (TypeError, ValueError):
+                continue
+        return tuple(dict.fromkeys(parsed))
     channel_id = schedule.get("channel_id")
     try:
         channel_id = int(channel_id) if channel_id else None
@@ -62,6 +76,8 @@ def load_config(path: str = "config.yaml") -> AppConfig:
         attending_option=str(rsvp.get("attending_option", "✅")),
         include_maybe=bool(rsvp.get("include_maybe", False)),
         admin_only_commands=bool(perms.get("admin_only_commands", True)),
+        organizer_role_ids=parse_id_list(perms.get("organizer_role_ids", [])),
+        organizer_user_ids=parse_id_list(perms.get("organizer_user_ids", [])),
         schedule_channel_id=channel_id,
         schedule_scan_limit=max(1, min(int(schedule.get("scan_limit", 100)), 100)),
         feed_channel_id=feed_channel_id,

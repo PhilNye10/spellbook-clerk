@@ -150,10 +150,20 @@ class TableBot(commands.Bot):
                 await self.db.upsert_attendee(event_id, uid, name, option)
 
     def _is_admin(self, interaction: discord.Interaction) -> bool:
-        if not self.cfg.admin_only_commands:
+        """Return whether the member may perform organizer-only actions.
+
+        Server administrators / members with Manage Server are always allowed.
+        Additional organizers can be granted access by role or user ID in config.yaml.
+        """
+        user = interaction.user
+        perms = getattr(user, "guild_permissions", None)
+        if perms and (perms.manage_guild or perms.administrator):
             return True
-        perms = getattr(interaction.user, "guild_permissions", None)
-        return bool(perms and (perms.manage_guild or perms.administrator))
+        if int(getattr(user, "id", 0)) in self.cfg.organizer_user_ids:
+            return True
+        member_roles = getattr(user, "roles", ())
+        member_role_ids = {int(role.id) for role in member_roles}
+        return bool(member_role_ids.intersection(self.cfg.organizer_role_ids))
 
     async def _member_display_name(self, guild: discord.Guild, user_id: str) -> str:
         member = guild.get_member(int(user_id))
