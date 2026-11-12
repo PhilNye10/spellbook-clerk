@@ -30,6 +30,21 @@ class MetaParser(HTMLParser):
         if key and value:
             self.meta.setdefault(key, value.strip())
 
+class ImageParser(HTMLParser):
+    """Find a useful article image when a publisher omits Open Graph metadata."""
+    def __init__(self):
+        super().__init__()
+        self.images = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag.lower() != "img":
+            return
+        values = {k.lower(): v for k, v in attrs if k and v}
+        candidate = values.get("src") or values.get("data-src") or values.get("data-original")
+        if candidate:
+            self.images.append(candidate.strip())
+
+
 class AnchorParser(HTMLParser):
     def __init__(self):
         super().__init__()
@@ -103,9 +118,17 @@ class FeedPublisher:
         """Fetch page metadata for a thumbnail and short summary when available."""
         try:
             html = await self._get(item["url"])
+            page = html[:1_500_000]
             parser = MetaParser()
-            parser.feed(html[:1_500_000])
-            item["image"] = (parser.meta.get("og:image") or parser.meta.get("twitter:image") or "").strip()
+            parser.feed(page)
+            image = (parser.meta.get("og:image") or parser.meta.get("og:image:secure_url") or
+                     parser.meta.get("twitter:image") or parser.meta.get("twitter:image:src") or "").strip()
+            if not image:
+                image_parser = ImageParser()
+                image_parser.feed(page)
+                image = next((candidate for candidate in image_parser.images
+                              if candidate.startswith(("https://", "http://"))), "")
+            item["image"] = urljoin(item["url"], image) if image else ""
             item["summary"] = (parser.meta.get("og:description") or parser.meta.get("description") or "").strip()
             # Prefer the source's published page title only if the feed title is absent.
             item["title"] = item.get("title") or parser.meta.get("og:title") or "New MTG feed item"
@@ -128,7 +151,7 @@ class FeedPublisher:
             if title and url:
                 summary = (entry.findtext("atom:content", default="", namespaces=ns) or
                            entry.findtext("atom:summary", default="", namespaces=ns)).strip()
-                # Reddit's Atom feed sometimes includes a media thumbnail.
+                # Reddit may expose a thumbnail as media metadata or inside its HTML content.
                 image = ""
                 for el in entry.iter():
                     if el.tag.rsplit("}", 1)[-1] in ("thumbnail", "content"):
@@ -136,6 +159,12 @@ class FeedPublisher:
                         if candidate and candidate.startswith("https://") and any(x in candidate.lower() for x in ("preview.redd.it", "i.redd.it", "external-preview.redd.it")):
                             image = candidate
                             break
+                if not image and summary:
+                    image_parser = ImageParser()
+                    image_parser.feed(summary)
+                    image = next((candidate for candidate in image_parser.images
+                                  if candidate.startswith("https://") and any(host in candidate.lower()
+                                  for host in ("preview.redd.it", "i.redd.it", "external-preview.redd.it"))), "")
                 items.append({"id": entry_id, "title": title, "url": url, "source": "r/sealedmtgdeals", "summary": summary, "image": image})
         return items[:40]
 
@@ -156,24 +185,22 @@ class FeedPublisher:
             return None
         return channel
 
-    async def _send_item(self, channel, item, embed, role_name: str):
-        role = discord.utils.get(channel.guild.roles, name=role_name) if getattr(channel, "guild", None) else None
-        # Only the matching opt-in role is allowed to be mentioned; no @everyone or
-        # other role/user mentions from feed content can trigger notifications.
-        allowed = discord.AllowedMentions(roles=[role] if role else [], users=False, everyone=False, replied_user=False)
-        mention = role.mention if role else ""
+    async def _send_item(self, channel, item, embed):
+        # Feed posts are intentionally silent: channel visibility is controlled
+        # by Discord role permissions, so there is no need to ping either role.
+        # Explicitly disable mentions so feed content can never trigger a ping.
+        allowed = discord.AllowedMentions.none()
         if isinstance(channel, discord.ForumChannel):
             title = " ".join(item["title"].split())[:100] or "New MTG feed item"
             await channel.create_thread(
                 name=title,
-                content=f"{mention} New MTG feed post".strip() if mention else None,
                 embeds=[embed],
                 allowed_mentions=allowed,
             )
         else:
-            await channel.send(content=f"{mention} New MTG feed post" if mention else None, embed=embed, allowed_mentions=allowed)
+            await channel.send(embed=embed, allowed_mentions=allowed)
 
-    async def _publish_source(self, source_key, items, channel, color, role_name: str):
+    async def _publish_source(self, source_key, items, channel, color):
         ids = [item["id"] for item in items]
         old = set(self.state.get(source_key, []))
         if source_key not in self.state:
@@ -203,9 +230,11 @@ class FeedPublisher:
             embed.set_footer(text=f"Tap Lands to Attack • Source: {item['source']}")
             image_url = item.get("image", "")
             if image_url.startswith("https://"):
+                # Keep previews as compact right-side thumbnails so the title and
+                # summary remain easy to scan in a busy feed channel.
                 embed.set_thumbnail(url=image_url)
             try:
-                await self._send_item(channel, item, embed, role_name)
+                await self._send_item(channel, item, embed)
                 successfully_published.add(item["id"])
                 log.info("Published %s feed item: %s", source_key, item["url"])
                 await asyncio.sleep(0.35)
@@ -220,10 +249,10 @@ class FeedPublisher:
         if self.session is None or self.session.closed:
             self.session = aiohttp.ClientSession(headers={"User-Agent": USER_AGENT, "Accept": "text/html,application/atom+xml,application/rss+xml,application/xml"})
         destinations = (
-            ("wizards_announcements", self._wizard_items, self.cfg.news_channel_id, discord.Color.blue(), "MTG News"),
-            ("sealedmtgdeals", self._reddit_items, self.cfg.deals_channel_id, discord.Color.gold(), "MTG Deals"),
+            ("wizards_announcements", self._wizard_items, self.cfg.news_channel_id, discord.Color.blue()),
+            ("sealedmtgdeals", self._reddit_items, self.cfg.deals_channel_id, discord.Color.gold()),
         )
-        for key, fetcher, channel_id, color, role_name in destinations:
+        for key, fetcher, channel_id, color in destinations:
             if not channel_id:
                 continue
             channel = await self._channel(channel_id)
@@ -231,7 +260,7 @@ class FeedPublisher:
                 continue
             try:
                 items = await fetcher()
-                await self._publish_source(key, items, channel, color, role_name)
+                await self._publish_source(key, items, channel, color)
             except (aiohttp.ClientError, asyncio.TimeoutError, ET.ParseError, ValueError):
                 log.exception("Feed poll failed for %s", key)
             except Exception:

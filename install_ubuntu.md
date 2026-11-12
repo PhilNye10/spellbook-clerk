@@ -178,3 +178,13 @@ cd /opt/mtg-table-bot
 docker compose up -d --build
 docker compose logs --tail=50
 ```
+
+
+### v14.1 — silent News and Deals feed posts
+
+The bot no longer tags `@MTG News` or `@MTG Deals` when publishing feed items. Keep using Discord channel permissions to control who can view each channel. Feed posts explicitly suppress role, user, and everyone mentions.
+
+
+## v14.2 feed preview polish
+
+Feed embeds now look for article thumbnails in Open Graph/Twitter metadata, page image tags, and Reddit RSS media/content. A thumbnail is shown when the source provides a usable HTTPS image. News and Deals posts remain silent; role mentions are disabled.

@@ -83,3 +83,15 @@ See `install_ubuntu.md` for installation and update instructions.
 ## Updating from a private GitHub repository
 
 See [GITHUB_SETUP.md](GITHUB_SETUP.md) to connect this installation to a private GitHub repository. Once configured, future updates are installed with `./update.sh` from the project directory.
+
+
+## v14.1 feed notification behavior
+
+MTG News and MTG Deals feed posts no longer mention or ping the `MTG News` or `MTG Deals` roles. Channel access remains controlled by the Discord channel permission settings. Feed messages explicitly disable all mentions.
+
+
+### v14.2 feed preview polish
+
+- Restores compact Discord embed thumbnails for feed items when the publisher exposes an image.
+- Improves image discovery using Open Graph/Twitter metadata, article image tags, and Reddit RSS media/content images.
+- Keeps News and Deals posts silent with all mentions disabled.
